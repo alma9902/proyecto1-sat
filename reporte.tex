@@ -1,0 +1,121 @@
+% type
+\documentclass{article}
+
+% format
+\usepackage[margin=1.5cm]{geometry}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+
+% font
+\usepackage{lmodern}
+
+% header
+\title{
+   	Razonamiento Automatizado 2020-2\\
+    Proyecto 1
+}
+
+% language
+\usepackage[spanish]{babel}
+
+% header
+\author{
+    Alma Rocío Sánchez Salgado.
+}
+
+%math
+\usepackage{amsmath}
+%code 
+\usepackage[ruled, vlined]{algorithm2e}
+\begin{document}
+    \maketitle
+    \section*{Planteamiento del problema}
+    Sabemos que uno de los problemas más comunes es encontrar una ruta de un punto $A$ a un punto $B$. Este tipo de problemas tienen diversas variantes, representado con gráficas o bien, representado como una cuadrícula de $m*n$ donde el punto $A$ con coordenadas $(i,j)$ con $0 < i< m$ y $0< j < n$ tiene como objetivo llegar a la casilla $B$.
+    
+    El problema a resolver es verificar si en un número de pasos $k$ un agente puede llegar a la casilla con oro. Para esto tomaremos en cuenta lo siguiente: 
+    \begin{enumerate}
+    	\item El agente siempre inicia desde la casilla $(0,0)$
+    	\item En casillas aleatorias hay obstáculos y el agente debe evitarlos 
+    	\item En una sola casilla estará el oro
+    	\item El agente solo puede visitar la casilla una vez 
+    	\item El agente puede moverse solo una casilla a la derecha, arriba o abajo.
+    \end{enumerate}
+    \section*{Resolución del problema con satisfacibilidad}
+    El problema de satisfacibilidad verifica si hay un modelo para la resolución de este o no. Es sabido que existe una amplia variedad de problemas que pueden ser codificados como instancia SAT, es decir, si un problema lo codificamos como instancia SAT podemos hacer uso de herramientas SAT-solvers para ver si son o no satisfacibles. 
+    
+    
+    Ahora bien, el agente solo puede observar qué es lo que hay en sus casillas adyacentes, no sabe más y queremos 
+    ver si existe una ruta de longitud $k$ que no pase por los obstáculos para llegar a la casilla que tiene oro. Por lo que es conveniente tener una serie de cláusulas en las que solamente intervengan las posibles casillas a las que se pueda mover teniendo en cuenta el objetivo ylos obstáculos para después verificar si es satisfacible o no. Entonces, en el paso $k$ descartaremos en la fórmula a verificar los pasos anteriores,esto para hacer más comprensibles las fórmulas que se generen. 
+    
+    
+    Nos podemos basar en lo se plantea en el libro \textit{Artificial Intelligence: A modern approach} para codificar el problema de planeación en una instancia SAT
+    
+    
+    		\begin{algorithm}[H]
+    		\SetAlgoLined
+\SetKwData{Left}{left}\SetKwData{This}{this}\SetKwData{Up}{up}\SetKwFunction{Union}{Union}\SetKwFunction{FindCompress}{FindCompress}\SetKwInOut{Input}{input}\SetKwInOut{Output}{output}\Input{init, transition, goal, $number-steps$}\Output{UNSAT o modelo si es SAT}
+\BlankLine
+
+\ForEach{step in steps}{
+	$formula \longleftarrow $ \textbf{TRANSLATE-TO-SAT(init, transition, goal, step)}\\
+	$model \longleftarrow $ \textbf{SAT-SOLVER(formula)}\\
+	\If{model is not \textit{null}}{
+		\Return{\textit{EXTRACT-SOLUTION(model)}}}
+	}
+
+\Return{UNSAT}
+
+ \caption{Algoritmo $SAT-{PLAN}$}
+ \end{algorithm}
+ 
+ Para adaptarlo a nuestro problema consideraremos lo siguiente: 
+ \begin{itemize}
+ 	\item[•]Como el agente tiene tres posibles acciones (moverse una casilla hacia la derecha, hacia arriba o hacia abajo), entonces tenemos tomar en cuenta todas las acciones válidas de acuerdo a su posición en la cuadrícula, i.e, si se encuentra en
+ 	la casilla más alta, el agente no podrá moverse hacia arriba. 
+ 	\item[•]Tenemos que abarcar todas las posibles rutas del agente, para esto, por ejemplo en una cuadrícula de $3*3$, el 
+ 	agente en el paso $1$ puede moverse hacia las casillas $(1,0),(0,1)$. Tenemos dos posibles rutas entonces para el siguiente paso del agente: 
+ 	\begin{enumerate}
+ 		\item El agente se mueve a la casilla $(0,1)$: las siguientes acciones válidas son moverse hacia la casilla $(0,2), (1,1)$. Es importante mencionar que solo puede estar en un solo lugar 
+ 		\item El agente se mueve a la casilla $(1,0)$: se puede mover hacia una casilla de: $(1,1),(2,0)$
+ 	\end{enumerate}
+ 	Por lo que las posibles ubicaciones del agente en el segundo paso son : $[(0,2),(1,1),(2,0)]$ . De esta manera, lo que hay 
+ 	que hay que verificar es si alguna de esas casillas tiene el oro, pero sin olvidar que hay obstáculos. Para esto vamos a formalizar el problema de la siguiente manera: 
+ 	\begin{itemize}
+ 		\item \texttt{Variables: } 
+ 		\begin{itemize}
+ 			\item[*]La localización del agente en el tiempo $t$: $A-ijt$
+ 			\item[*]La localización del obstáculo en el tiempo $t$: $P-ijt$
+ 			\item[*]La localización del oro en el tiempo $t$ : $G-ijt$
+ 			
+		\end{itemize} 		 
+		\item \texttt{Estado inicial: } Será la localización del agente en el paso en el que esté (tiempo), recordemos 
+		que el agente no sabe nada más que información de sus casillas adyacentes y su actual. 
+		\item \texttt{Acciones: } : 
+			\begin{itemize}
+				\item[*]$mover-arriba(i, j , time) = A-i-1,j,time$
+				\item[*]$mover_abajo(i, j, time) = A-i+1,j,time$
+				\item[*]$mover_derecha(i,j,time) = A-i,j+1,time$
+			\end{itemize}
+ 	\end{itemize}
+ 	\item[•] Para codificarlo podemos tener un arreglo de fórmulas que se tienen que cumplir así que vamos añadiendo las siguientes fórmulas a este:  
+ 		\begin{itemize}
+ 			\item[*]Restricciones: Sabemos que exactamente hay una casilla con oro, entonces a lo más va a existir una casilla al que el agente pueda moverse que tenga oro, obtenemos las literales correspondientes y aplicamos la función \textit{exactly-one} que es el equivalente a la función $MaxUno$
+ 			\item[*]Siempre el agente empieza en $A-000$ en el tiempo 0, esa casilla nunca es obstáculo y tampoco tiene oro, entonces puede verse como $AND(A-000, Not(P-000), Not(G-000))$
+ 			\item[*]Para moverse: codificamos las posibles casillas a las que se puede mover y sabemos que el agente puede estar en una sola casilla al mismo tiempo, por lo que también le aplicamos la función \textit{exactly-one}. Sabemos que el agente se puede mover si no hay pozo en esa casilla, así que se tiene que cumplir que $AND(A-ijt, Not(P-ijt))$. Finalmente, que para que se cumpla el objetivo el agente debe estar en la misma posición que el oro pero solamente se puede cumplir uno, así que se codifica como $AND(A-ijt, G-ijt)$ y se pasa por la función \textit{exactly-one-goal}
+ 			\item[*]Finalmente se agrega el hecho de que el oro esté o no en una casilla (por lo que ve el agente) y lo mismo con los obstáculos
+ 			
+ 		\end{itemize}
+ 		\item[•]Como ya tenemos la fórmula, revisamos si es satisfacible, si lo es, podemos observar el valor de cada variable
+ \end{itemize}
+	\section*{Resultados} 
+		El programa sí verifica correctamente si en $k$ pasos el agente puede llegar al objetivo, el modelo que arroja 
+		es el estado de las casillas adyacentes y deduce en cuál casilla está el agente (siempre se pone or en la fórmula), 
+		sin embargo, no puede dar el plan por la manera en cómo codificamos el problema. Para que esto último pueda suceder, 
+		tenemos que considerar a las casillas ya visitadas para toda la fórmula. 
+		Algo bueno de esto es que de manera muy sencilla podemos implementar la verificación para $n$ robots que quieren 
+		llegar al mismo objetivo, solo es cuestión de iterar el proceso para cada uno y añadir la restricción de 
+		que dos robots no pueden estar al mismo tiempo en la misma casilla. 
+		
+		Para correr el proyecto solo basta con ejecutar \textit{solve.py} en el directorio donde está el archivo, se pueden modificar los parámetros del número de pasos, así como el ancho y alto de la cuadrícula o del mundo. 
+    
+\end{document}
